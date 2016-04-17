@@ -1,0 +1,290 @@
+#define _CRT_SECURE_NO_WARNINGS 1
+#include<iostream>
+#include<assert.h>
+using namespace std;
+enum Type//用枚举形式来定义广义表中三种节点类型
+{
+	HEAD, //头类型
+	VALUE,//值类型
+	SUB,//子表类型
+};
+
+struct GeneralizedNode
+{
+	Type _type;//类型
+	GeneralizedNode* _next;//指向下一节点的指针
+	union
+	{
+		int _value;//一个节点下一节点可能是值节点，也可能是子表节点
+		GeneralizedNode* _sublink;
+	}; 
+
+	GeneralizedNode(Type type)
+		:_next(NULL)
+		, _type(type)
+	{}
+
+	GeneralizedNode(Type type,int value)
+		:_next(NULL)
+		, _type(type)
+		, _value(value)
+	{}
+};
+
+class Generalized
+{
+public:
+	Generalized()
+		:_head(NULL)
+	{}
+
+	Generalized(const char* str)
+	{
+		_head = _CreateList(str);//调用函数创建节点
+	}
+
+	Generalized(const Generalized& gr)
+	{
+		_head = _Copy(gr._head);//调用函数拷贝节点
+	}
+
+	Generalized& operator=(const Generalized& gr)
+	{
+		if (&gr != this)
+		{
+			_Copy(gr._head);
+			_Destroy(_head);
+		}
+		return *this;
+	}
+
+	~Generalized()
+	{
+		_Destroy(_head);
+	}
+
+	void Print()
+	{
+		_Print(_head);
+	}
+
+	size_t Size()
+	{
+		return _Size(_head);
+	}
+
+	size_t Depth()
+	{
+		return _Depth(_head);
+	}
+
+protected:
+	//拷贝广义表
+	GeneralizedNode* _Copy(GeneralizedNode* grhead)
+	{
+		GeneralizedNode* grcur = grhead;
+
+		GeneralizedNode* newHead = new GeneralizedNode(HEAD);
+		GeneralizedNode* newcur = newHead;
+
+		while (grcur)
+		{
+			if (grcur->_type == VALUE)
+			{
+				GeneralizedNode* tmp = new GeneralizedNode(VALUE);
+				newcur->_next = tmp;
+				newcur = newcur->_next;
+				newcur->_value = grcur->_value;
+			}
+			
+			else if (grcur->_type == SUB)
+			{
+				GeneralizedNode* tmp = new GeneralizedNode(SUB);
+				newcur->_next = tmp;
+				newcur = newcur->_next;
+				newcur->_sublink = _Copy(grcur->_sublink);
+			}
+			grcur = grcur->_next;
+		}
+		newcur = NULL;
+		return newHead;
+	}
+
+	//释放广义表
+	void _Destroy(GeneralizedNode* head)
+	{
+		GeneralizedNode* cur = head;
+		while (cur)
+		{
+			GeneralizedNode* del = cur;
+			cur = cur->_next;
+			if (del->_type == SUB)
+			{
+				_Destroy(del->_sublink);
+			}
+			else
+			{
+				delete del;
+				del = NULL;
+			}
+		}
+	}
+
+	//打印
+	void _Print(GeneralizedNode* head)
+	{	
+		GeneralizedNode* cur = head;
+		while (cur)
+		{
+			if (cur->_type == HEAD)
+			{
+				cout << "(";
+			}
+			else if (cur->_type == VALUE)
+			{
+				cout << (char)(cur->_value);
+				if (cur->_next)
+				{
+					cout << ",";
+				}
+			}
+			else if (cur->_type == SUB)
+			{
+				_Print(cur->_sublink);
+				if (cur->_next)
+				{
+					cout << ",";
+				}
+			}
+			cur = cur->_next;
+		}
+		cout << ")";		
+	}
+
+	//判断是否是值
+	bool _IsValue(const char* str)
+	{
+		if (*str > 0 && *str<9
+			|| *str>'a' && *str<'z'
+			|| *str>'A' && *str < 'Z')
+		{
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	//创建节点
+	GeneralizedNode* _CreateList(const char* str)
+	{
+		assert(*str=='(');
+		++str;
+		GeneralizedNode* head = new GeneralizedNode(HEAD);
+		GeneralizedNode* cur = head;
+		while (cur)
+		{
+			if (_IsValue(str))
+			{
+ 				cur->_next = new GeneralizedNode(VALUE,*str);
+				cur = cur->_next;
+				str++;
+			}
+			else if (*str == '(')
+			{
+				GeneralizedNode* SubNode = new GeneralizedNode(SUB);
+				cur->_next = SubNode;
+				cur = cur->_next;
+				SubNode->_sublink = _CreateList(str);
+				str++;
+			}
+			else if (*str == ')')
+			{
+				str++;
+				return head;
+			}
+			else
+			{
+				str++;
+			}
+		}
+		cout << "广义表出错！" << endl;
+		assert(false);
+		return head;
+	}
+
+	//大小（值节点数）
+	size_t _Size(GeneralizedNode* head)
+	{
+		GeneralizedNode* cur = head;
+		size_t size = 0;
+		while (cur)
+		{
+			if (cur->_type == VALUE)
+			{
+				size++;
+			}
+			else if (cur->_type == SUB)
+			{
+				size += _Size(cur->_sublink);
+			}
+			cur = cur->_next;
+		}
+		return size;
+	}
+
+	//深度
+	size_t _Depth(GeneralizedNode* head)
+	{
+		size_t depth = 1;
+		GeneralizedNode* cur = head;
+		while (cur)
+		{
+			if (cur->_type == SUB)
+			{
+				size_t curdepth = _Depth(cur->_sublink);
+	
+				if (curdepth + 1 > depth)
+				{
+					depth = curdepth + 1;
+				}
+			}
+			cur = cur->_next;
+		}
+		return depth;
+	}
+
+private:
+	GeneralizedNode* _head;
+};
+
+void Test()
+{
+	Generalized gr1("()");
+	Generalized gr2("(a,b,(c,d))");
+	Generalized gr3("(a,b,(c,(d),e))");
+	Generalized gr4(gr3);
+	gr1.Print();
+	cout << endl;
+	gr2.Print();
+	cout << endl;
+
+	gr3.Print();
+	cout << endl;
+
+	gr4.Print();
+	cout << endl;
+
+	size_t size = gr4.Size();
+	cout << "gr4大小："<<size << endl;
+	int depth = gr4.Depth();
+	cout << "gr4深度:" << depth << endl;
+}
+
+int main()
+{
+	Test();
+	system("pause");
+	return 0;
+}
